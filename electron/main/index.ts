@@ -1,5 +1,6 @@
 import { app, BrowserWindow, session } from "electron";
 import path from "node:path";
+import { installErrorLogging } from "./errors";
 import { APP_USER_MODEL_ID, handleSquirrelEvent } from "./install/squirrel";
 import { registerIpc } from "./ipc/register";
 import { mark } from "./perf/marks";
@@ -14,6 +15,7 @@ import { getShield } from "./shield/instance";
 import { createMainWindow } from "./windows/mainWindow";
 
 mark("main-loaded");
+installErrorLogging();
 // Runs from source keep their data apart from the installed app: the installed app encrypts cookies (a fuse the
 // development binary doesn't have), so sharing one folder would lose cookies in one or the other.
 if (!app.isPackaged && !app.commandLine.hasSwitch("user-data-dir")) app.setPath("userData", path.join(app.getPath("appData"), "SIDB-dev"));

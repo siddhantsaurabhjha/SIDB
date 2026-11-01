@@ -4,7 +4,7 @@
 // drives the interface through its own window.sidb bridge, and checks the things packaging can break.
 // It also checks that remote debugging is refused when no separate data folder is given.
 import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -240,6 +240,12 @@ try {
   step("closing SIDB");
   kill(app);
   await sleep(2500);
+  const mainLog = path.join(dataDir, "logs", "main.log");
+  if (existsSync(mainLog)) {
+    const text = readFileSync(mainLog, "utf8");
+    check("no unexpected errors in SIDB's error log", text.trim() === "", text.split("\n")[0]?.slice(0, 300));
+    console.log("--- logs/main.log:\n" + text.slice(-3000));
+  }
   try {
     rmSync(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
   } catch {
