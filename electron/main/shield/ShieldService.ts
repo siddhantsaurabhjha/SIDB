@@ -382,7 +382,7 @@ export class ShieldService {
         total: saved.total + (pending?.blocked ?? 0),
         popupsToday: saved.popupsToday + (pending?.popups ?? 0),
       },
-      safeBrowsing: { enabled: settings.safeBrowsingEnabled, keySet: this.secrets.has(SAFE_BROWSING_SECRET), secureStorage: this.secrets.isAvailable() },
+      safeBrowsing: { enabled: settings.safeBrowsingEnabled, keySet: this.secrets.has(SAFE_BROWSING_SECRET), secureStorage: await this.secrets.isAvailable() },
     };
   }
 

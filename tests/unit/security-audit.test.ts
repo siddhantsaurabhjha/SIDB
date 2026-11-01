@@ -64,6 +64,10 @@ describe("security audit: webPreferences", () => {
     expect(/nodeIntegration\s*:\s*true/.test("webPreferences: { nodeIntegration: true }")).toBe(true);
   });
 
+  it("only the asynchronous safeStorage API is used (the sync one froze SIDB on a fresh Windows profile)", () => {
+    expect(offenders(/safeStorage\.(isEncryptionAvailable|encryptString|decryptString)\s*\(/)).toEqual([]);
+  });
+
   it("nothing turns off Electron's security warnings", () => {
     expect(offenders(/ELECTRON_DISABLE_SECURITY_WARNINGS/)).toEqual([]);
   });

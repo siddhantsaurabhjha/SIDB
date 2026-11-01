@@ -165,6 +165,18 @@ try {
   })()`);
   check("database add, read, delete and settings write", db?.added && db?.removed && db?.setting, JSON.stringify(db));
 
+  // Encrypted key storage (OS key store through Electron's async safeStorage). A dummy key in the throwaway profile.
+  step("encrypted key storage");
+  const keys = await c.evaluate(`(async () => {
+    const ai = window.sidb.data.ai;
+    await ai.setKey({ key: "smoke-test-dummy-key-0000" });
+    const saved = await ai.status();
+    await ai.clearKey();
+    const cleared = await ai.status();
+    return { secureStorage: saved.secureStorage, saved: saved.keySet, cleared: !cleared.keySet };
+  })()`);
+  check("API keys are saved encrypted and can be removed", keys?.secureStorage && keys?.saved && keys?.cleared, JSON.stringify(keys));
+
   // Filter lists download on first start; wait for the engine.
   step("waiting for the Shield engine");
   let shield = null;

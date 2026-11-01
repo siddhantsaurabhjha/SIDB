@@ -186,7 +186,7 @@ const methods: Record<DataMethod, Entry> = {
 
   "ai.status": {
     schema: none,
-    run: (c): AiStatus => {
+    run: async (c): Promise<AiStatus> => {
       const wc = c.tabs.activeWebContents();
       let page: AiStatus["page"] = null;
       if (wc && !c.isPrivate) {
@@ -196,13 +196,13 @@ const methods: Record<DataMethod, Entry> = {
           page = null;
         }
       }
-      return { keySet: getSecrets().has(NVIDIA_KEY_SECRET), secureStorage: getSecrets().isAvailable(), model: c.profile.settings.peek().aiModel, pageContextAllowed: !c.isPrivate, page };
+      return { keySet: getSecrets().has(NVIDIA_KEY_SECRET), secureStorage: await getSecrets().isAvailable(), model: c.profile.settings.peek().aiModel, pageContextAllowed: !c.isPrivate, page };
     },
   },
   "ai.setKey": {
     schema: z.object({ key: z.string().trim().min(10).max(300).regex(/^[\w.~+/=-]+$/, "That does not look like an API key") }),
-    run: (c, a) => {
-      getSecrets().set(NVIDIA_KEY_SECRET, a.key);
+    run: async (c, a) => {
+      await getSecrets().set(NVIDIA_KEY_SECRET, a.key);
       c.profile.emit("settings");
     },
   },
@@ -330,8 +330,8 @@ const methods: Record<DataMethod, Entry> = {
   },
   "shield.setSafeBrowsingKey": {
     schema: z.object({ key: z.string().trim().min(10).max(200).regex(/^[\w-]+$/, "That does not look like an API key") }),
-    run: (c, a) => {
-      getSecrets().set(SAFE_BROWSING_SECRET, a.key);
+    run: async (c, a) => {
+      await getSecrets().set(SAFE_BROWSING_SECRET, a.key);
       c.profile.emit("shield");
     },
   },

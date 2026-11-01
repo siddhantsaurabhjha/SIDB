@@ -103,7 +103,7 @@ export class SafeBrowsingClient {
   lastError: string | null = null;
 
   constructor(
-    private readonly getKey: () => string | null,
+    private readonly getKey: () => string | null | Promise<string | null>,
     private readonly fetchImpl: FetchLike = fetch as unknown as FetchLike,
     private readonly now: () => number = Date.now,
     private readonly timeoutMs = 1500,
@@ -111,8 +111,9 @@ export class SafeBrowsingClient {
 
   /** Returns readable threat names if the URL is known to be dangerous, otherwise null (also null on any failure: fail open). */
   async check(url: string): Promise<string[] | null> {
-    const key = this.getKey();
-    if (!key || this.now() < this.backoffUntil) return null;
+    if (this.now() < this.backoffUntil) return null;
+    const key = await this.getKey();
+    if (!key) return null;
     const expressions = urlExpressions(url);
     if (expressions.length === 0) return null;
 

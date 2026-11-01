@@ -7,7 +7,7 @@ export const NVIDIA_KEY_SECRET = "nvidiaApiKey";
 const LOCAL_LIMIT_PER_MINUTE = 30; // stay under NVIDIA's free-tier limit (about 40 requests per minute)
 
 export interface KeyStore {
-  get(name: string): string | null;
+  get(name: string): string | null | Promise<string | null>;
 }
 
 /** Everything the service needs from one browser window. Keeps Electron out of this file so it can be tested. */
@@ -41,7 +41,7 @@ export class AiService {
   async send(host: AiHost, req: AiSendRequest): Promise<void> {
     const fail = (kind: AiError["kind"], message: string, retryAfterSeconds?: number) => host.emit({ type: "error", requestId: req.requestId, kind, message, retryAfterSeconds });
 
-    const apiKey = this.keys.get(NVIDIA_KEY_SECRET);
+    const apiKey = await this.keys.get(NVIDIA_KEY_SECRET);
     if (!apiKey) return fail("no-key", "Add your NVIDIA API key in AI settings to use SIDB AI.");
     if (this.inflight.has(req.requestId)) return;
 
@@ -134,7 +134,7 @@ export class AiService {
 
   /** One tiny request to confirm the key and model work together. */
   async test(host: Pick<AiHost, "model" | "windowId">): Promise<{ ok: boolean; message: string }> {
-    const apiKey = this.keys.get(NVIDIA_KEY_SECRET);
+    const apiKey = await this.keys.get(NVIDIA_KEY_SECRET);
     if (!apiKey) return { ok: false, message: "No API key saved." };
     const abort = new AbortController();
     let got = "";
