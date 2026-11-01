@@ -56,6 +56,11 @@ function cdp(wsUrl) {
   let id = 0;
   const pending = new Map();
   const events = [];
+  ws.onclose = () => {
+    // The page went away (renderer crashed, window closed): fail the waiting calls at once instead of hanging.
+    for (const resolve of pending.values()) resolve({ result: { exceptionDetails: { exception: { description: "DevTools connection closed (the page went away)" } } } });
+    pending.clear();
+  };
   ws.onmessage = (m) => {
     const msg = JSON.parse(m.data);
     if (msg.id && pending.has(msg.id)) {
@@ -86,13 +91,23 @@ function cdp(wsUrl) {
       }),
     ]);
     if (r.result?.exceptionDetails) throw new Error(r.result.exceptionDetails.exception?.description ?? "evaluation failed");
+    if (r.error) throw new Error(`DevTools error: ${r.error.message}`);
     return r.result?.result?.value;
   };
   return { ready, send, evaluate, events, close: () => ws.close() };
 }
 
+/** SIDB's own console output (last lines), printed when something fails. */
+const appLog = [];
 function launch(args, env = process.env) {
-  return spawn(exe, args, { env, stdio: "ignore" });
+  const p = spawn(exe, args, { env, stdio: ["ignore", "pipe", "pipe"] });
+  const keep = (d) => {
+    for (const line of String(d).split(/\r?\n/)) if (line.trim()) appLog.push(line.slice(0, 400));
+    if (appLog.length > 60) appLog.splice(0, appLog.length - 60);
+  };
+  p.stdout.on("data", keep);
+  p.stderr.on("data", keep);
+  return p;
 }
 
 function kill(p) {
@@ -206,7 +221,9 @@ try {
   check("private window opens", after === before + 1);
   c.close();
 } catch (e) {
-  check("smoke run finished without errors", false, String(e?.message ?? e));
+  check("smoke run finished without errors", false, `${String(e?.message ?? e)} during: ${current}${appExited ? `; SIDB quit: ${appExited}` : ""}`);
+  const t = await targets(port);
+  console.log("page targets now:", t ? t.map((x) => `${x.type} ${x.url.slice(0, 80)}`).join(" | ") : "DevTools not answering");
 } finally {
   step("closing SIDB");
   kill(app);
@@ -219,5 +236,9 @@ try {
 }
 
 const failed = results.filter((r) => !r.ok).length;
+if (failed) {
+  console.log("--- SIDB's last console lines:");
+  for (const l of appLog.slice(-30)) console.log("  " + l);
+}
 console.log(`\n${results.length - failed}/${results.length} checks passed`);
 process.exit(failed ? 1 : 0);
