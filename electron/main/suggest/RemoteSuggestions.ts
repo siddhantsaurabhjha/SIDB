@@ -1,5 +1,6 @@
 import { SEARCH_ENGINES, type SearchEngineId } from "../../../shared/constants/search";
 import { isSafeToSendToEngine, sanitizeRemote } from "../../../shared/suggest";
+import { appFetch } from "../net/appFetch";
 import { discardBody } from "../net/discardBody";
 
 const TTL_MS = 5 * 60_000;
@@ -26,7 +27,7 @@ export class RemoteSuggestions {
   private inflight = new Map<number, AbortController>();
 
   constructor(
-    private readonly fetchImpl: FetchLike = (url, init) => fetch(url, init) as ReturnType<FetchLike>,
+    private readonly fetchImpl: FetchLike = (url, init) => appFetch(url, init),
     private readonly now: () => number = Date.now,
   ) {}
 

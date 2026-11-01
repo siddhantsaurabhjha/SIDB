@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { appFetch } from "../net/appFetch";
 import { discardBody } from "../net/discardBody";
 
 /**
@@ -105,7 +106,7 @@ export class SafeBrowsingClient {
 
   constructor(
     private readonly getKey: () => string | null | Promise<string | null>,
-    private readonly fetchImpl: FetchLike = fetch as unknown as FetchLike,
+    private readonly fetchImpl: FetchLike = (input, init) => appFetch(input, init),
     private readonly now: () => number = Date.now,
     private readonly timeoutMs = 1500,
   ) {}

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { checkDue, isNewer, parseLatestRelease, REPO_PATTERN, type ReleaseInfo, type UpdateStatus } from "../../../shared/updates";
 import { getProfiles } from "../profiles/instance";
+import { appFetch } from "../net/appFetch";
 import { discardBody } from "../net/discardBody";
 
 const FIRST_CHECK_DELAY_MS = 60_000;
@@ -86,7 +87,7 @@ class UpdateChecker {
     this.checking = true;
     getProfiles().broadcast("updates");
     try {
-      const res = await fetch(`https://api.github.com/repos/${this.repo}/releases/latest`, {
+      const res = await appFetch(`https://api.github.com/repos/${this.repo}/releases/latest`, {
         headers: { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": `SIDB/${app.getVersion()}` },
         redirect: "error",
         signal: AbortSignal.timeout(TIMEOUT_MS),

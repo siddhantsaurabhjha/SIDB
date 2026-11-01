@@ -68,6 +68,17 @@ describe("security audit: webPreferences", () => {
     expect(offenders(/safeStorage\.(isEncryptionAvailable|encryptString|decryptString)\s*\(/)).toEqual([]);
   });
 
+  it("the main process makes requests only through appFetch (Chromium's network stack), never Node's fetch", () => {
+    const mainFiles = SOURCES.filter((f) => rel(f).startsWith("electron/main/") && !rel(f).startsWith("electron/main/dev/"));
+    const calls = (f: string) =>
+      code(f)
+        .split("\n")
+        .filter((l) => /(^|[^.\w])fetch\s*\(/.test(l) && !/\basync\s+fetch\s*\(/.test(l)); // a method named fetch is fine
+    const bad = mainFiles.filter((f) => calls(f).length > 0).map((f) => `${rel(f)}: ${calls(f)[0].trim()}`);
+    expect(bad).toEqual([]);
+    expect(code(path.join(ROOT, "electron/main/shield/ShieldService.ts"))).toContain("appFetch(");
+  });
+
   it("nothing turns off Electron's security warnings", () => {
     expect(offenders(/ELECTRON_DISABLE_SECURITY_WARNINGS/)).toEqual([]);
   });

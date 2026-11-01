@@ -1,5 +1,6 @@
 import type { AiErrorKind } from "../../../shared/types/ai";
 import type { ChatMessage } from "./prompts";
+import { appFetch } from "../net/appFetch";
 import { discardBody } from "../net/discardBody";
 
 /** The only host the API key is ever sent to. Not configurable on purpose. */
@@ -73,7 +74,7 @@ export function classifyHttp(status: number, detail: string, retryAfter: string 
  * No `reasoning_effort` is sent, so reasoning-capable models (such as Mistral Large 4) answer directly.
  * Returns the number of characters received.
  */
-export async function streamChat(opts: StreamOptions, fetchImpl: FetchLike = fetch): Promise<number> {
+export async function streamChat(opts: StreamOptions, fetchImpl: FetchLike = appFetch): Promise<number> {
   const controller = new AbortController();
   const onAbort = () => controller.abort();
   if (opts.signal.aborted) controller.abort();
@@ -153,7 +154,7 @@ export async function streamChat(opts: StreamOptions, fetchImpl: FetchLike = fet
 }
 
 /** Public endpoint: confirms the model id exists in NVIDIA's catalog. Does not use or validate the key. */
-export async function modelExists(model: string, fetchImpl: FetchLike = fetch): Promise<boolean> {
+export async function modelExists(model: string, fetchImpl: FetchLike = appFetch): Promise<boolean> {
   try {
     const res = await fetchImpl(`${NVIDIA_BASE}/models/${model}`, { signal: AbortSignal.timeout(15_000) });
     await discardBody(res); // only the status matters

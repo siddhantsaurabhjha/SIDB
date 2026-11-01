@@ -145,6 +145,8 @@ try {
   check("IPC works from the packaged interface", Array.isArray(snap?.tabs), `${snap?.tabs?.length} tab(s)`);
   const upd = await c.evaluate("window.sidb.data.updates.status()");
   check("update status reports an installed build", upd?.packaged === true, `version ${upd?.current}, repo ${upd?.repo ?? "not set"}`);
+  const checked = await c.evaluate("window.sidb.data.updates.check()");
+  check("update check reaches GitHub Releases", checked?.error === null && typeof checked?.lastCheckedAt === "number", checked?.error ?? `latest: ${checked?.latest?.version ?? "no release yet"}, newer available: ${checked?.available}`);
   const stats = await c.evaluate("window.sidb.data.resources.stats()");
   check("Performance panel data", typeof stats?.sidbMB === "number", `${stats?.sidbMB} MB, GPU on: ${stats?.gpu?.enabledNow}`);
   const settings = await c.evaluate("window.sidb.data.settings.get()");

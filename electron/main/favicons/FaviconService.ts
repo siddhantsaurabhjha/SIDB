@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { appFetch } from "../net/appFetch";
 import { MAX_HTML_BYTES, MAX_ICON_BYTES, detectImage, isAllowedIconUrl, originOf, parseLinkIcons, pixelSize, rootGuesses, sortCandidates, type IconCandidate, type ImageInfo } from "./parse";
 
 const OK_TTL_MS = 7 * 86_400_000;
@@ -58,7 +59,7 @@ export class FaviconService {
   constructor(opts: FaviconOptions) {
     this.dir = opts.dir;
     this.parent = opts.parent;
-    this.fetchImpl = opts.fetchImpl ?? ((url, init) => fetch(url, init));
+    this.fetchImpl = opts.fetchImpl ?? ((url, init) => appFetch(url, init));
     this.now = opts.now ?? Date.now;
     if (this.dir) fs.mkdirSync(this.dir, { recursive: true });
   }

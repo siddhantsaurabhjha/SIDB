@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { Worker } from "node:worker_threads";
 import { ipcMain, webContents, type Session } from "electron";
+import { appFetch } from "../net/appFetch";
 import type { FiltersEngine } from "@ghostery/adblocker";
 import type { FilterListInfo, ShieldStatus } from "../../../shared/types/shield";
 import type { ProfileRuntime } from "../profiles/ProfileManager";
@@ -225,7 +226,7 @@ export class ShieldService {
   // ------------------------------------------------------------------ updates ----------------
 
   private async download(url: string, etag: string | null): Promise<{ text: string; etag: string | null } | "not-modified"> {
-    const res = await fetch(url, {
+    const res = await appFetch(url, {
       headers: { "user-agent": "SIDB-Browser/0.1", ...(etag ? { "if-none-match": etag } : {}) },
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
