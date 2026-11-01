@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { checkDue, isNewer, parseLatestRelease, REPO_PATTERN, type ReleaseInfo, type UpdateStatus } from "../../../shared/updates";
 import { getProfiles } from "../profiles/instance";
+import { discardBody } from "../net/discardBody";
 
 const FIRST_CHECK_DELAY_MS = 60_000;
 const TIMEOUT_MS = 15_000;
@@ -92,9 +93,11 @@ class UpdateChecker {
       });
       if (res.status === 404) {
         // No published release yet (GitHub answers 404 for "latest" then).
+        await discardBody(res);
         this.stored = { ...this.stored, lastCheckedAt: Date.now(), latest: null };
         this.error = null;
       } else if (!res.ok) {
+        await discardBody(res);
         this.error = res.status === 403 || res.status === 429 ? "GitHub is limiting requests right now. Try again later." : `GitHub answered ${res.status}.`;
       } else {
         const text = await res.text();

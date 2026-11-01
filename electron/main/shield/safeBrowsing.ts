@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { discardBody } from "../net/discardBody";
 
 /**
  * Google Safe Browsing v5 `hashes:search` client (non-commercial use only per Google's terms).
@@ -154,6 +155,7 @@ export class SafeBrowsingClient {
       clearTimeout(timer);
     }
     if (!res.ok) {
+      await discardBody(res);
       this.backoffUntil = this.now() + (res.status === 429 || res.status >= 500 ? 60_000 : 300_000);
       throw new Error(res.status === 400 || res.status === 403 ? "Safe Browsing rejected the API key" : `Safe Browsing error ${res.status}`);
     }

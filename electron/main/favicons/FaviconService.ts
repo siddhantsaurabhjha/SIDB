@@ -347,6 +347,10 @@ export class FaviconService {
         return { bytes: Buffer.concat(chunks), finalUrl: current };
       } finally {
         clearTimeout(timer);
+        // Never leave a response half-read: redirects, errors and early stops all end here. An unread, paused body
+        // made Node's HTTP client hit an internal assertion when the server closed the connection (seen on Windows).
+        // Aborting after a complete read does nothing.
+        controller.abort();
       }
     }
     return null; // too many redirects

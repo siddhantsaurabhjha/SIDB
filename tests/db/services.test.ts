@@ -368,6 +368,7 @@ describe("ai conversations", () => {
     const a = await svc.create("First chat");
     await new Promise((r) => setTimeout(r, 3));
     const b = await svc.create("Second chat");
+    await new Promise((r) => setTimeout(r, 3)); // timestamps are in ms; a fast machine could tie otherwise
     await svc.append(a.id, "hello", "hi there");
     expect((await svc.list()).map((c) => c.title)).toEqual(["First chat", "Second chat"]); // a was touched last
     expect((await svc.messages(a.id)).map((m) => [m.role, m.content])).toEqual([

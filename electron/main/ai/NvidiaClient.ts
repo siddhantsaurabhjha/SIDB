@@ -1,5 +1,6 @@
 import type { AiErrorKind } from "../../../shared/types/ai";
 import type { ChatMessage } from "./prompts";
+import { discardBody } from "../net/discardBody";
 
 /** The only host the API key is ever sent to. Not configurable on purpose. */
 export const NVIDIA_BASE = "https://integrate.api.nvidia.com/v1";
@@ -155,6 +156,7 @@ export async function streamChat(opts: StreamOptions, fetchImpl: FetchLike = fet
 export async function modelExists(model: string, fetchImpl: FetchLike = fetch): Promise<boolean> {
   try {
     const res = await fetchImpl(`${NVIDIA_BASE}/models/${model}`, { signal: AbortSignal.timeout(15_000) });
+    await discardBody(res); // only the status matters
     return res.ok;
   } catch {
     return false;

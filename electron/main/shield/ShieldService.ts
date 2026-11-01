@@ -229,10 +229,21 @@ export class ShieldService {
       headers: { "user-agent": "SIDB-Browser/0.1", ...(etag ? { "if-none-match": etag } : {}) },
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
-    if (res.status === 304) return "not-modified";
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    // Unread bodies are cancelled, never left paused (that tripped an internal assertion in Node's HTTP client).
+    const discard = () => res.body?.cancel().catch(() => undefined);
+    if (res.status === 304) {
+      await discard();
+      return "not-modified";
+    }
+    if (!res.ok) {
+      await discard();
+      throw new Error(`HTTP ${res.status}`);
+    }
     const length = Number(res.headers.get("content-length") ?? 0);
-    if (length > MAX_LIST_BYTES) throw new Error("download is too large");
+    if (length > MAX_LIST_BYTES) {
+      await discard();
+      throw new Error("download is too large");
+    }
     return { text: await res.text(), etag: res.headers.get("etag") };
   }
 

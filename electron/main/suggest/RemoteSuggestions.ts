@@ -1,5 +1,6 @@
 import { SEARCH_ENGINES, type SearchEngineId } from "../../../shared/constants/search";
 import { isSafeToSendToEngine, sanitizeRemote } from "../../../shared/suggest";
+import { discardBody } from "../net/discardBody";
 
 const TTL_MS = 5 * 60_000;
 const MAX_CACHE = 200;
@@ -53,7 +54,10 @@ export class RemoteSuggestions {
     try {
       const url = SEARCH_ENGINES[engine].suggest.replace("%s", encodeURIComponent(q));
       const res = await this.fetchImpl(url, { headers: { "user-agent": "SIDB-Browser/0.1", accept: "application/json" }, signal: controller.signal });
-      if (!res.ok) return { suggestions: [], error: "network" };
+      if (!res.ok) {
+        await discardBody(res);
+        return { suggestions: [], error: "network" };
+      }
       const body = (await res.text()).slice(0, MAX_BODY_CHARS);
       let json: unknown;
       try {
