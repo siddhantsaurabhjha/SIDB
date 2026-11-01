@@ -1,0 +1,23 @@
+node_modules/
+dist/
+dist-electron/
+out/
+*.log
+*.tsbuildinfo
+.env
+.env.*
+
+# Never commit local data, keys or certificates
+*.db
+*.db-wal
+*.db-shm
+*.pfx
+*.p12
+secrets.json
+
+# Owner's private planning document and original design files (kept locally; resources/ and src/assets hold the
+# versions the app uses)
+/SIDB_Master_Project_Blueprint_v1.md
+/logo.png
+/dashboard-bg.png
+/private-bg.png

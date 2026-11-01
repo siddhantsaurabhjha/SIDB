@@ -1,0 +1,73 @@
+{
+  "name": "sidb",
+  "productName": "SIDB",
+  "version": "0.1.0",
+  "description": "SIDB - A Browser Built Around You.",
+  "author": "SIDB",
+  "license": "UNLICENSED",
+  "private": true,
+  "homepage": "https://github.com/siddhantsaurabhjha/SIDB",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/siddhantsaurabhjha/SIDB.git"
+  },
+  "bugs": {
+    "url": "https://github.com/siddhantsaurabhjha/SIDB/issues"
+  },
+  "type": "module",
+  "main": "dist-electron/main/index.cjs",
+  "sidb": {
+    "updates": {
+      "github": "siddhantsaurabhjha/SIDB"
+    }
+  },
+  "config": {
+    "forge": "./forge.config.cjs"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build:main": "vite build --config vite.main.config.ts && vite build --config vite.preload.config.ts && node scripts/copy-runtime-files.mjs",
+    "build:renderer": "vite build",
+    "build": "npm run typecheck && npm run build:renderer && npm run build:main",
+    "start": "electron .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest --run tests/unit",
+    "test:db": "node scripts/test-db.mjs",
+    "perf": "node scripts/perf.mjs",
+    "icons": "electron scripts/make-icons.mjs",
+    "package": "npm run build && electron-forge package",
+    "make": "npm run build && electron-forge make && node scripts/collect-release.mjs",
+    "smoke:packaged": "node --experimental-websocket scripts/smoke-packaged.mjs"
+  },
+  "dependencies": {
+    "@ghostery/adblocker": "2.20.3",
+    "@ghostery/adblocker-electron-preload": "2.20.3",
+    "drizzle-orm": "0.45.4",
+    "lucide-react": "1.66.0",
+    "qrcode-generator": "2.0.4",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zod": "4.6.7",
+    "zustand": "5.0.16"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "7.11.2",
+    "@electron-forge/maker-deb": "7.11.2",
+    "@electron-forge/maker-rpm": "7.11.2",
+    "@electron-forge/maker-squirrel": "7.11.2",
+    "@electron-forge/maker-zip": "7.11.2",
+    "@electron-forge/plugin-fuses": "7.11.2",
+    "@electron/fuses": "1.8.0",
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "22.20.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "drizzle-kit": "0.31.11",
+    "electron": "45.2.1",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3",
+    "vite": "8.3.5",
+    "vitest": "4.1.12"
+  }
+}

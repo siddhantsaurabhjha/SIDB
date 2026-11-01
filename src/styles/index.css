@@ -1,0 +1,239 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #07060f;
+  --color-panel: rgb(20 18 38 / 0.72);
+  --color-panel-solid: #12102a;
+  --color-line: rgb(255 255 255 / 0.08);
+  --color-fg: #ecebff;
+  --color-muted: #9a97bd;
+  --color-accent: #7c5cff;
+  --color-accent-2: #4f8dff;
+  --font-sans: "Segoe UI", Inter, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  overflow: hidden;
+  user-select: none;
+}
+
+.drag {
+  -webkit-app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+.glass {
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+  backdrop-filter: blur(14px);
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: var(--color-muted);
+  transition: background-color 120ms, color 120ms;
+}
+.icon-btn:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.08);
+  color: var(--color-fg);
+}
+.icon-btn:disabled {
+  opacity: 0.35;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent-2);
+  outline-offset: 1px;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(255 255 255 / 0.12);
+  border-radius: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+
+/* ---- page and app backgrounds (theme aware) ---- */
+.bg-app {
+  background: linear-gradient(135deg, #0b0820 0%, #07060f 60%);
+}
+.bg-app-private {
+  background: linear-gradient(135deg, #140a2e 0%, #07040f 60%);
+}
+.bg-page {
+  background: radial-gradient(ellipse at 50% -10%, #1d1647 0%, #0a0817 55%, #07060f 100%);
+}
+.bg-page-ai {
+  background: radial-gradient(ellipse at 50% 0%, #2a1b66 0%, #0b0820 55%, #07060f 100%);
+}
+.bg-warning {
+  background: radial-gradient(ellipse at 50% 0%, #4a0f1f 0%, #12060c 70%);
+}
+.bg-accent {
+  color: #fff;
+}
+
+/* ---- light theme ----
+   Overlay utilities (bg-white/10, bg-black/30) are built from --color-white and --color-black,
+   so swapping those two variables flips every translucent surface at once. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #eef0f8;
+  --color-panel: rgb(255 255 255 / 0.8);
+  --color-panel-solid: #ffffff;
+  --color-line: rgb(25 22 60 / 0.14);
+  --color-fg: #1a1833;
+  --color-muted: #5a5877;
+  --color-white: #000000;
+  --color-black: #ffffff;
+  --color-red-200: #991b1b;
+  --color-red-300: #b91c1c;
+  --color-red-400: #dc2626;
+  --color-amber-300: #92400e;
+  --color-amber-400: #b45309;
+  --color-emerald-300: #047857;
+  --color-sky-300: #0369a1;
+}
+:root[data-theme="light"] .bg-app {
+  background: linear-gradient(135deg, #f6f7fd 0%, #e7eaf7 70%);
+}
+:root[data-theme="light"] .bg-app-private {
+  background: linear-gradient(135deg, #e9e3fb 0%, #e3e6f6 70%);
+}
+:root[data-theme="light"] .bg-page,
+:root[data-theme="light"] .bg-page-ai {
+  background: radial-gradient(ellipse at 50% -10%, #e1dcff 0%, #eef0f8 60%, #e8ebf6 100%);
+}
+:root[data-theme="light"] .glass {
+  backdrop-filter: blur(10px);
+  box-shadow: 0 1px 2px rgb(25 22 60 / 0.06);
+}
+/* Surfaces drawn over photos always use the dark palette so text stays readable. */
+.force-dark {
+  color-scheme: dark;
+  --color-bg: #07060f;
+  --color-panel: rgb(20 18 38 / 0.72);
+  --color-panel-solid: #12102a;
+  --color-line: rgb(255 255 255 / 0.08);
+  --color-fg: #ecebff;
+  --color-muted: #9a97bd;
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --color-red-200: #fecaca;
+  --color-red-300: #fca5a5;
+  --color-red-400: #f87171;
+  --color-amber-300: #fcd34d;
+  --color-amber-400: #fbbf24;
+  --color-emerald-300: #6ee7b7;
+  color: var(--color-fg);
+}
+
+
+/* ---- address bar suggestions ---- */
+.omnibox-pop {
+  background: color-mix(in srgb, var(--color-panel-solid) 94%, transparent);
+  transform-origin: top center;
+  animation: omnibox-in 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes omnibox-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* The loading hints only appear if the engine takes longer than a moment, so quick answers cause no flicker. */
+.omnibox-spinner,
+.omnibox-delayed {
+  animation-name: omnibox-fade-in;
+  animation-duration: 150ms;
+  animation-delay: 180ms;
+  animation-fill-mode: backwards;
+}
+.omnibox-spinner {
+  animation: omnibox-fade-in 150ms 180ms backwards, spin 1s linear infinite;
+}
+@keyframes omnibox-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+
+/* ---- website icons on a contrasting tile ----
+   A black logo is invisible on a dark theme and a white one on a light theme; those get a soft tile behind them. */
+[data-icon-tone="dark"] {
+  background: rgb(255 255 255 / 0.92);
+}
+:root[data-theme="light"] [data-icon-tone="dark"] {
+  background: none;
+}
+:root[data-theme="light"] [data-icon-tone="light"] {
+  background: rgb(26 24 51 / 0.9);
+}
+:root[data-theme="light"] .force-dark [data-icon-tone="dark"] {
+  background: rgb(255 255 255 / 0.92);
+}
+:root[data-theme="light"] .force-dark [data-icon-tone="light"] {
+  background: none;
+}
+
+/* ---- battery saver ----
+   On battery the UI drops blur and decorative motion (both keep the GPU busy). Loading spinners still turn,
+   so progress stays visible. Users who ask the OS for reduced motion get the same treatment at all times. */
+:root[data-power="battery"] .glass {
+  backdrop-filter: none;
+  background: var(--color-panel-solid, var(--color-panel));
+}
+:root[data-power="battery"] *:not(.animate-spin):not(.omnibox-spinner) {
+  transition-duration: 0s !important;
+  animation-duration: 0s !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *:not(.animate-spin):not(.omnibox-spinner) {
+    transition-duration: 0s !important;
+    animation-duration: 0s !important;
+  }
+}
+
+/* ---- sleeping tabs ---- */
+[role="tab"][data-sleeping="true"] {
+  opacity: 0.6;
+}

@@ -1,0 +1,124 @@
+# SIDB build, test and release.
+#  - Every push to main (and manual runs): build and test on Windows and Linux, test the installers. No release.
+#  - A version tag (v1.2.3, matching package.json): the same, then a GitHub release is published with the installers
+#    and SHA256SUMS.txt, only if every test passed. An existing release is never overwritten; a fix gets a new version.
+# Secrets: only the workflow's own GITHUB_TOKEN is used (no personal tokens). Installers are not code-signed.
+name: Build and release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and test (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+          - name: Linux
+            os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Linux packaging and display tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y fakeroot dpkg rpm xvfb
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Version must match the tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          ver="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$ver" ]; then echo "::error::Tag v$tag does not match package.json version $ver"; exit 1; fi
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Database tests
+        run: npm run test:db
+
+      - name: Build installers
+        run: npm run make
+
+      - name: Smoke test the packaged app (Windows)
+        if: runner.os == 'Windows'
+        env:
+          SIDB_SMOKE_LABEL: Windows packaged
+        run: node scripts/smoke-packaged.mjs
+
+      - name: Install, uninstall and reinstall test (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/ci/windows-install-test.ps1 -Version (node -p "require('./package.json').version")
+
+      - name: Install test of the .deb (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: bash scripts/ci/linux-install-test.sh "$(node -p "require('./package.json').version")"
+
+      - name: Keep the installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ runner.os }}
+          path: out/release/*
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist-release
+          merge-multiple: true
+
+      - name: One checksum file for all downloads
+        run: |
+          cd dist-release
+          cat SHA256SUMS-*.txt | sort -k2 > SHA256SUMS.txt
+          rm SHA256SUMS-*.txt
+          sha256sum -c SHA256SUMS.txt
+          ls -la
+
+      - name: Publish (never overwrites an existing release)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          ver="${tag#v}"
+          notes="docs/release-notes/v${ver}.md"
+          if [ ! -f "$notes" ]; then echo "::error::Release notes $notes are missing"; exit 1; fi
+          if gh release view "$tag" >/dev/null 2>&1; then echo "::error::A release for $tag already exists; publish a new version instead"; exit 1; fi
+          gh release create "$tag" dist-release/* --verify-tag --title "SIDB $ver" --notes-file "$notes" --latest
+          echo "::notice title=Release::Published SIDB $ver"
