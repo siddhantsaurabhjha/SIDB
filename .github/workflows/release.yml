@@ -16,7 +16,8 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  # A newer push replaces an older test run; a release (tag) run is never cancelled.
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
   build:
@@ -54,29 +55,37 @@ jobs:
           ver="$(node -p "require('./package.json').version")"
           if [ "$tag" != "$ver" ]; then echo "::error::Tag v$tag does not match package.json version $ver"; exit 1; fi
 
+      # scripts/ci/run.sh posts the end of a failing command's output as an annotation on the run page.
       - name: Unit tests
-        run: npm test
+        shell: bash
+        run: bash scripts/ci/run.sh "Unit tests" npm test
 
       - name: Database tests
-        run: npm run test:db
+        shell: bash
+        run: bash scripts/ci/run.sh "Database tests" npm run test:db
 
       - name: Build installers
-        run: npm run make
+        shell: bash
+        run: bash scripts/ci/run.sh "Build installers" npm run make
 
       - name: Smoke test the packaged app (Windows)
         if: runner.os == 'Windows'
+        shell: bash
+        timeout-minutes: 8
         env:
           SIDB_SMOKE_LABEL: Windows packaged
-        run: node scripts/smoke-packaged.mjs
+        run: bash scripts/ci/run.sh "Windows smoke test" node scripts/smoke-packaged.mjs
 
       - name: Install, uninstall and reinstall test (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
+        timeout-minutes: 15
         run: ./scripts/ci/windows-install-test.ps1 -Version (node -p "require('./package.json').version")
 
       - name: Install test of the .deb (Linux)
         if: runner.os == 'Linux'
         shell: bash
+        timeout-minutes: 12
         run: bash scripts/ci/linux-install-test.sh "$(node -p "require('./package.json').version")"
 
       - name: Keep the installers

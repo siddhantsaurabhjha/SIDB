@@ -20,6 +20,19 @@ if (!existsSync(exe)) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const results = [];
+let current = "starting";
+const step = (name) => {
+  current = name;
+  console.log(`... ${name}`);
+};
+// Watchdog: a hang becomes a clear failure instead of a stuck CI job.
+const WATCHDOG_MS = 5 * 60_000;
+setTimeout(() => {
+  check(`smoke test finished within ${WATCHDOG_MS / 60_000} minutes`, false, `stuck at: ${current}`);
+  if (appProcess) kill(appProcess);
+  process.exit(1);
+}, WATCHDOG_MS).unref();
+let appProcess = null;
 const ci = process.env.GITHUB_ACTIONS === "true";
 const label = process.env.SIDB_SMOKE_LABEL ?? `${process.platform} packaged`;
 const check = (name, ok, detail = "") => {
@@ -50,10 +63,15 @@ function cdp(wsUrl) {
       pending.delete(msg.id);
     } else if (msg.method) events.push(msg);
   };
-  const ready = new Promise((r, j) => {
-    ws.onopen = r;
-    ws.onerror = j;
-  });
+  const ready = Promise.race([
+    new Promise((r, j) => {
+      ws.onopen = r;
+      ws.onerror = () => j(new Error("DevTools connection failed"));
+    }),
+    sleep(15_000).then(() => {
+      throw new Error("DevTools connection timed out");
+    }),
+  ]);
   const send = (method, params = {}) =>
     new Promise((resolve) => {
       const i = ++id;
@@ -61,7 +79,12 @@ function cdp(wsUrl) {
       ws.send(JSON.stringify({ id: i, method, params }));
     });
   const evaluate = async (expression) => {
-    const r = await send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
+    const r = await Promise.race([
+      send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true }),
+      sleep(60_000).then(() => {
+        throw new Error(`no answer within 60 s: ${expression.slice(0, 80)}`);
+      }),
+    ]);
     if (r.result?.exceptionDetails) throw new Error(r.result.exceptionDetails.exception?.description ?? "evaluation failed");
     return r.result?.result?.value;
   };
@@ -84,14 +107,19 @@ function kill(p) {
 // ---------------------------------------------------------------- the app itself
 const dataDir = mkdtempSync(path.join(tmpdir(), "sidb-smoke-"));
 const port = 9800 + Math.floor(Math.random() * 150);
+step("starting SIDB");
 const app = launch([`--user-data-dir=${dataDir}`, `--remote-debugging-port=${port}`]);
+appProcess = app;
+let appExited = null;
+app.on("exit", (code, signal) => (appExited = `exit code ${code}${signal ? `, signal ${signal}` : ""}`));
 try {
+  step("waiting for the interface");
   let ui = null;
   for (let i = 0; i < 40 && !ui; i++) {
     await sleep(500);
     ui = (await targets(port))?.find((t) => t.type === "page" && t.url.startsWith("sidb-app://")) ?? null;
   }
-  check("interface loads from sidb-app://ui/", !!ui, ui?.url);
+  check("interface loads from sidb-app://ui/", !!ui, ui?.url ?? (appExited ? `SIDB quit: ${appExited}` : "no interface page within 20 s"));
   if (!ui) throw new Error("no interface");
   const c = cdp(ui.webSocketDebuggerUrl);
   await c.ready;
@@ -123,6 +151,7 @@ try {
   check("database add, read, delete and settings write", db?.added && db?.removed && db?.setting, JSON.stringify(db));
 
   // Filter lists download on first start; wait for the engine.
+  step("waiting for the Shield engine");
   let shield = null;
   for (let i = 0; i < 90; i++) {
     shield = await c.evaluate("window.sidb.data.shield.status()");
@@ -132,6 +161,7 @@ try {
   check("Shield engine built from downloaded lists (worker thread inside the archive)", !!shield?.ready, `${shield?.networkRules ?? 0} network, ${shield?.cosmeticRules ?? 0} cosmetic rules`);
 
   // A real page in a tab.
+  step("loading a web page");
   await c.evaluate(`window.sidb.tabs.create({ url: "https://example.com/", activate: true })`);
   await sleep(5000);
   const page = (await targets(port)).find((t) => t.type === "page" && t.url.startsWith("https://example.com"));
@@ -153,12 +183,14 @@ try {
   }
 
   // Website icons: fetched from the site itself and cached as a file in the profile.
+  step("website icons");
   const icon = await c.evaluate(`window.sidb.data.favicon.get({ url: "https://github.com/" })`);
   const iconDir = path.join(profileDir, "favicons");
   const iconFiles = existsSync(iconDir) ? readdirSync(iconDir).length : 0;
   check("website icon fetched and cached on disk", typeof icon === "string" && icon.startsWith("data:image/") && iconFiles > 0, `${icon ? icon.slice(0, 22) : "none"}, ${iconFiles} cache file(s)`);
 
   // Ads blocked on a real page (network filtering).
+  step("blocking on a real page");
   await c.evaluate(`window.sidb.tabs.create({ url: "https://www.theguardian.com/international", activate: true })`);
   await sleep(10000);
   const tabs = (await c.evaluate("window.sidb.tabs.list()")).tabs;
@@ -166,6 +198,7 @@ try {
   check("Shield blocks requests on a real page", (g?.blocked ?? 0) > 0, `${g?.blocked ?? 0} blocked`);
 
   // Private window opens with the packaged interface too.
+  step("private window");
   const before = (await targets(port)).filter((t) => t.url.startsWith("sidb-app://")).length;
   await c.evaluate("window.sidb.window.newPrivate()");
   await sleep(3000);
@@ -175,9 +208,14 @@ try {
 } catch (e) {
   check("smoke run finished without errors", false, String(e?.message ?? e));
 } finally {
+  step("closing SIDB");
   kill(app);
   await sleep(2500);
-  rmSync(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
+  try {
+    rmSync(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
+  } catch {
+    /* a file still held by a closing process; the folder is in the temp directory */
+  }
 }
 
 const failed = results.filter((r) => !r.ok).length;
