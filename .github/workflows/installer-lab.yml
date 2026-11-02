@@ -28,4 +28,13 @@ jobs:
       - name: Lab
         shell: pwsh
         timeout-minutes: 20
-        run: ./scripts/ci/windows-installer-lab.ps1 -Version 0.1.0
+        run: |
+          $PSVersionTable.PSVersion | Out-String | Write-Host
+          try {
+            & ./scripts/ci/windows-installer-lab.ps1 -Version 0.1.0
+            Write-Host "script finished, exit code $LASTEXITCODE"
+          } catch {
+            $m = "PS $($PSVersionTable.PSVersion): $($_.Exception.GetType().FullName): $($_.Exception.Message)`n$($_ | Out-String)"
+            Write-Host "::error title=LAB wrapper caught::$($m.Replace('%','%25').Replace("`r",'').Replace("`n",'%0A'))"
+            exit 1
+          }
