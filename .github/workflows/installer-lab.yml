@@ -1,0 +1,31 @@
+# Diagnostic lab for the Windows installer (lives only on the lab-installer branch, never on main).
+# Downloads the installer built by an earlier run and tries variants on a throwaway runner.
+name: Installer lab
+
+on:
+  push:
+    branches: [lab-installer]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  lab:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Get the installer from the earlier run
+        uses: actions/download-artifact@v4
+        with:
+          name: release-Windows
+          path: out/release
+          run-id: 41383406013
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lab
+        shell: pwsh
+        timeout-minutes: 20
+        run: ./scripts/ci/windows-installer-lab.ps1 -Version 0.1.0
