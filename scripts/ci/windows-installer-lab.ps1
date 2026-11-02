@@ -24,7 +24,7 @@ function Annotate([string]$title, [string[]]$lines) {
 
 function Kill-All { foreach ($n in "SIDB", "Update", "squirrel", "SIDB-$Version-Setup") { Get-Process -Name $n -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue }; Start-Sleep 2 }
 
-function Clean {
+function Reset-Machine {
   Kill-All
   Remove-Item -Recurse -Force $install, $sqTemp, $data -ErrorAction SilentlyContinue
   Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs", ([Environment]::GetFolderPath("Desktop")) -Recurse -Filter "SIDB*" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
@@ -59,7 +59,7 @@ function Logs([string]$what) {
 
 # Runs Setup.exe (or another command), waits up to $wait seconds for THAT process, reports.
 function Experiment([string]$name, [string]$file, [string[]]$arguments, [int]$wait, [int]$killSidbAfter = 0, [string]$workDir = $null) {
-  Clean
+  Reset-Machine
   $out = Join-Path $tmp "$name.out.txt"; $err = Join-Path $tmp "$name.err.txt"
   $splat = @{ FilePath = $file; PassThru = $true; RedirectStandardOutput = $out; RedirectStandardError = $err }
   if ($arguments) { $splat.ArgumentList = $arguments }
@@ -92,7 +92,7 @@ Experiment "A normal Setup.exe (SIDB closed at 25 s)" $setup @() 60 1
 Experiment "B Setup.exe --silent" $setup @("--silent") 90
 
 # C: run Update.exe --install directly, from a copy of what Setup.exe unpacked, to see its own error output
-Clean
+Reset-Machine
 $p = Start-Process -FilePath $setup -PassThru; Start-Sleep 25; Kill-All
 Remove-Item -Recurse -Force (Join-Path $tmp "sqcopy") -ErrorAction SilentlyContinue
 Copy-Item -Recurse $sqTemp (Join-Path $tmp "sqcopy") -ErrorAction SilentlyContinue
@@ -101,9 +101,9 @@ Experiment "C Update.exe --install (direct, with output)" (Join-Path $tmp "sqcop
 Annotate "C files Setup.exe had unpacked" $copyList
 
 # D: direct, silent
-Clean
+Reset-Machine
 Experiment "D Update.exe --install --silent (direct)" (Join-Path $tmp "sqcopy\Update.exe") @("--install", ".", "--silent") 90 0 (Join-Path $tmp "sqcopy")
 
-Clean
+Reset-Machine
 Write-Host "lab finished"
 exit 0
