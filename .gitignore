@@ -21,3 +21,6 @@ secrets.json
 /logo.png
 /dashboard-bg.png
 /private-bg.png
+
+# Local test report from another tool; verification is done by CI
+/test.md
