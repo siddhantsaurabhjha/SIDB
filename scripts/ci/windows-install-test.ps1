@@ -17,6 +17,7 @@ $data = Join-Path ([Environment]::GetFolderPath("ApplicationData")) "SIDB"
 $db = Join-Path $data "profiles\personal\sidb.db"
 $uninstallKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\SIDB"
 $failed = 0
+$TIMED_OUT = -999 # a real exit code can never be this, so "timed out" is never confused with "failed with -1"
 
 function Say([string]$text) { Write-Host ("[{0:HH:mm:ss}] {1}" -f (Get-Date), $text) }
 
@@ -46,26 +47,43 @@ function Wait-Until([scriptblock]$condition, [int]$seconds) {
   return [bool](& $condition)
 }
 
-# Starts a program and waits for THAT process only (not the programs it starts). Returns its exit code, or -1 on timeout.
+# Starts a program and waits for THAT process only (not the programs it starts). Returns its exit code, or $TIMED_OUT.
 function Run-Program([string]$file, [string[]]$arguments, [int]$timeoutSeconds) {
   $p = if ($arguments) { Start-Process -FilePath $file -ArgumentList $arguments -PassThru } else { Start-Process -FilePath $file -PassThru }
   $null = $p.Handle # keeps the handle open so ExitCode can be read after the process ends
   if (-not $p.WaitForExit($timeoutSeconds * 1000)) {
     Say "timed out after $timeoutSeconds s: $file"
+    Show-Processes "still running after the $timeoutSeconds s time limit ($file)"
     & taskkill /F /T /PID $p.Id 2>&1 | Out-Null
-    return -1
+    return $TIMED_OUT
   }
   return $p.ExitCode
 }
 
-function Show-Diagnostics {
-  Say "--- diagnostics"
-  Write-Host "install folder:"; Get-ChildItem $install -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "  $($_.Name)" }
-  Write-Host "SIDB processes:"; Get-Process SIDB, Update, Setup -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "  $($_.ProcessName) $($_.Id)" }
-  $log = Join-Path $data "logs\main.log"
-  if (Test-Path $log) { Write-Host "logs\main.log:"; Get-Content $log -Tail 20 | ForEach-Object { Write-Host "  $_" } }
-  $sq = Join-Path $install "SquirrelSetup.log"
-  if (Test-Path $sq) { Write-Host "SquirrelSetup.log:"; Get-Content $sq -Tail 20 | ForEach-Object { Write-Host "  $_" } }
+# Failure details as annotations: the job log needs a GitHub login to read, annotations on the run page do not.
+function Annotate([string]$title, [string[]]$lines) {
+  $text = (($lines | Where-Object { $_ }) -join "`n").Replace("%", "%25").Replace("`r", "")
+  if ($text.Length -gt 3500) { $text = $text.Substring($text.Length - 3500) }
+  $text = $text.Replace("`n", "%0A")
+  Write-Host "::warning title=Windows install test - ${title}::$text"
+}
+
+function Show-Processes([string]$why) {
+  $rows = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^(SIDB|Update|Setup|SIDB-.*Setup)' -or $_.ExecutablePath -like "*\SIDB*" } |
+    ForEach-Object { "$($_.Name) pid $($_.ProcessId) parent $($_.ParentProcessId) :: $($_.CommandLine)" }
+  Annotate "processes ($why)" $rows
+}
+
+function Show-Diagnostics([string]$when) {
+  Say "--- diagnostics ($when)"
+  $tree = Get-ChildItem $install -Recurse -Depth 1 -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName.Replace($install, "") }
+  Annotate "install folder ($when)" $tree
+  $reg = Get-ChildItem "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall" -ErrorAction SilentlyContinue | ForEach-Object { "$($_.PSChildName) = $((Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue).DisplayName)" }
+  Annotate "uninstall registry entries ($when)" $reg
+  Show-Processes $when
+  foreach ($log in @((Join-Path $install "SquirrelSetup.log"), (Join-Path $env:LOCALAPPDATA "SquirrelTemp\SquirrelSetup.log"), (Join-Path $data "logs\main.log"))) {
+    if (Test-Path $log) { Annotate "$(Split-Path $log -Leaf) ($when)" (Get-Content $log -Tail 25) }
+  }
 }
 
 function Install([string]$label) {
@@ -94,7 +112,7 @@ $links = Shortcuts
 Check "Start menu / desktop shortcuts created" ($links.Count -gt 0) (($links | ForEach-Object { $_.FullName.Replace($env:USERPROFILE, "~") }) -join ", ")
 Check "listed in installed apps" (Test-Path $uninstallKey)
 Check "first start created the profile" (Test-Path $db) $data
-if ($failed -gt 0) { Show-Diagnostics }
+if ($failed -gt 0) { Show-Diagnostics "after install" }
 
 # ---- the installed app works (its own throwaway data folder, passed with --user-data-dir by the smoke script)
 Say "smoke test of the installed app"
@@ -129,7 +147,7 @@ Check "shortcuts removed" ((Shortcuts).Count -eq 0)
 Check "removed from installed apps" (-not (Test-Path $uninstallKey))
 Check "user data kept after uninstall" ((Test-Path $marker) -and (Test-Path $db))
 Check "database unchanged by uninstall" ((Test-Path $db) -and ((Get-FileHash $db).Hash -eq $dbBefore))
-if ($failed -gt 0) { Show-Diagnostics }
+if ($failed -gt 0) { Show-Diagnostics "after uninstall" }
 
 # ---- reinstall finds the same data
 $code = Install "reinstall"
@@ -146,6 +164,6 @@ Say "final uninstall"
 $null = Run-Program $updateExe @("--uninstall", "-s") 120
 Remove-Item $marker -ErrorAction SilentlyContinue
 
-if ($failed -gt 0) { Show-Diagnostics; Write-Host "$failed check(s) failed"; exit 1 }
+if ($failed -gt 0) { Show-Diagnostics "end"; Write-Host "$failed check(s) failed"; exit 1 }
 Write-Host "All Windows install checks passed"
 exit 0
