@@ -3,7 +3,14 @@ param([Parameter(Mandatory = $true)][string]$Version)
 $ErrorActionPreference = "Continue"
 if ($env:GITHUB_ACTIONS -ne "true") { throw "lab only runs on GitHub Actions" }
 
-$setup = Resolve-Path "out\release\SIDB-$Version-Setup.exe"
+function Fail-Annotate([string]$m) { Write-Host "::error title=LAB crashed::$($m.Replace('%','%25').Replace("`r",'').Replace("`n",'%0A'))" }
+trap { Fail-Annotate "$($_.Exception.Message)`n$($_.ScriptStackTrace)"; exit 1 }
+$ErrorActionPreference = "Stop"
+$listing = Get-ChildItem out -Recurse -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName.Replace((Get-Location).Path, "") + " (" + $_.Length + ")" }
+Write-Host "::warning title=LAB - files in out::$(($listing -join "`n").Replace('%','%25').Replace("`n",'%0A'))"
+$setup = (Get-ChildItem out -Recurse -Filter "SIDB-$Version-Setup.exe" | Select-Object -First 1).FullName
+if (-not $setup) { throw "Setup.exe not found in the downloaded artifact" }
+$ErrorActionPreference = "Continue"
 $install = Join-Path $env:LOCALAPPDATA "SIDB"
 $sqTemp = Join-Path $env:LOCALAPPDATA "SquirrelTemp"
 $data = Join-Path ([Environment]::GetFolderPath("ApplicationData")) "SIDB"
