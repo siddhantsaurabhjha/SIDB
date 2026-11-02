@@ -91,6 +91,8 @@ jobs:
         run: bash scripts/ci/linux-install-test.sh "$(node -p "require('./package.json').version")"
 
       - name: Keep the installers
+        # Also when a test failed, so the exact files can be inspected.
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ runner.os }}
