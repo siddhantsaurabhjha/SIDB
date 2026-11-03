@@ -20,15 +20,19 @@ and has not been verified, and the [user guide](docs/USER_GUIDE.md) for how to u
 
 ### Windows 10 and 11 (64-bit)
 
-1. Download `SIDB-<version>-Setup.exe` from the [latest release](https://github.com/siddhantsaurabhjha/SIDB/releases/latest).
-2. Optional: check the download. In PowerShell, `Get-FileHash .\SIDB-<version>-Setup.exe -Algorithm SHA256` must
+SIDB 0.1.0 comes as a **portable ZIP**; there is no installer yet (planned for 0.1.1, see progress.md).
+
+1. Download `SIDB-<version>-win-x64.zip` from the [latest release](https://github.com/siddhantsaurabhjha/SIDB/releases/latest).
+2. Optional: check the download. In PowerShell, `Get-FileHash .\SIDB-<version>-win-x64.zip -Algorithm SHA256` must
    print the value listed for that file in `SHA256SUMS.txt` on the release.
-3. Run it. It installs for your user only (no administrator rights) and starts SIDB.
+3. Unpack it to a folder you want to keep (for example `C:\Apps\SIDB`) and run `SIDB.exe`. You can pin it to the
+   taskbar. There is no Start menu or Settings > Apps entry.
 
-The installer is **not code-signed**, so Windows SmartScreen shows "Windows protected your PC / Unknown publisher" the
-first time. Choose "More info", then "Run anyway", only if the checksum matched.
+The program is **not code-signed**, so Windows SmartScreen shows "Windows protected your PC / Unknown publisher" the
+first time. Choose "More info", then "Run anyway", only if the checksum matched. If Windows blocks the unpacked files,
+right-click the ZIP before unpacking, choose Properties and tick "Unblock".
 
-A portable zip (`SIDB-<version>-win-x64.zip`) is also provided. It uses the same data folder as the installed app.
+To remove SIDB, delete its folder. Your data is in a separate folder (below) and stays until you delete it.
 
 ### Linux (64-bit)
 
@@ -44,18 +48,19 @@ sudo apt install ./sidb_<version>_amd64.deb      # or: sudo dnf install ./sidb-<
 
 SIDB checks GitHub Releases once a day (Settings > About and updates; it can be turned off) and tells you when a newer
 version exists. It **never downloads or installs anything by itself**. To update, open the release page from that
-panel, download the installer and run it. Your data is kept.
+panel, download the new version and unpack it (Windows: into a new folder, then delete the old one) or install it
+(Linux). Your data is kept.
 
 ## Your data
 
 | | Windows | Linux |
 |---|---|---|
 | Profiles, history, bookmarks, settings, Shield lists | `%APPDATA%\SIDB` | `~/.config/SIDB` |
-| The program (installed) | `%LOCALAPPDATA%\SIDB` | `/usr/lib/sidb` |
+| The program | the folder you unpacked the ZIP to | `/usr/lib/sidb` (`.deb`/`.rpm`) |
 
-Uninstalling (Windows: Settings > Apps > SIDB) removes the program and its shortcuts but **keeps your data**, so a
-reinstall finds everything. Delete the data folder yourself to remove it. Cookies are encrypted with your operating
-system's key store; the NVIDIA and Safe Browsing keys are stored only through the OS key store as well.
+Removing the program (delete the folder, or `sudo apt remove sidb`) **keeps your data**, so a newer version finds
+everything. Delete the data folder yourself to remove it. Cookies are encrypted with your operating system's key
+store; the NVIDIA and Safe Browsing keys are stored only through the OS key store as well.
 
 Runs from source (`npm start`, `npm run dev`) use a separate folder, `SIDB-dev`, so development never touches the data
 of the installed app.
@@ -73,7 +78,7 @@ and `rpm`.
 | `npm test` / `npm run test:db` | Unit tests / database tests |
 | `npm run package` | Packaged app in `out/SIDB-<platform>-<arch>` |
 | `npm run smoke:packaged` | Automated checks of the packaged app (throwaway data folder) |
-| `npm run make` | Installers and archives, renamed for release, in `out/release`, with `SHA256SUMS-<platform>.txt` |
+| `npm run make` | Release files (Windows ZIP; Linux deb, rpm, zip), renamed for release, in `out/release`, with `SHA256SUMS-<platform>.txt`. Set `SIDB_BUILD_INSTALLER=1` to also build the experimental Windows installer |
 | `npm run icons` | Regenerate `resources/icons/icon.ico` and `icon.png` from `logo.png` |
 | `npm run perf` | Performance and leak measurement (developer only) |
 
@@ -85,8 +90,9 @@ The update check and releases use `"sidb": { "updates": { "github": "siddhantsau
 2. Run locally: `npm test`, `npm run test:db`, `npm run build`, `npm run perf`, `npm run package`, `npm run smoke:packaged`.
 3. Commit to `main`, then tag and push: `git tag v<version> && git push origin v<version>`.
 4. The [workflow](.github/workflows/release.yml) builds on Windows and Ubuntu, runs the tests, smoke-tests the packaged
-   app, installs, uninstalls and reinstalls on Windows, installs the `.deb` on Ubuntu, and only then publishes the
-   release with all files and `SHA256SUMS.txt`. It refuses to overwrite an existing release; a fix gets a new version.
+   app and the unpacked Windows ZIP, installs the `.deb` on Ubuntu, and only then publishes the release with all files
+   and `SHA256SUMS.txt`. It refuses to overwrite an existing release; a fix gets a new version. The experimental
+   Windows installer job runs only when started by hand and never blocks a release.
 
 Every push to `main` runs the same builds and tests without releasing.
 

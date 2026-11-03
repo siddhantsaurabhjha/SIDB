@@ -66,9 +66,9 @@ jobs:
         shell: bash
         run: bash scripts/ci/run.sh "Database tests" npm run test:db
 
-      - name: Build installers
+      - name: Build packages
         shell: bash
-        run: bash scripts/ci/run.sh "Build installers" npm run make
+        run: bash scripts/ci/run.sh "Build packages" npm run make
 
       - name: Smoke test the packaged app (Windows)
         if: runner.os == 'Windows'
@@ -78,11 +78,22 @@ jobs:
           SIDB_SMOKE_LABEL: Windows packaged
         run: bash scripts/ci/run.sh "Windows smoke test" node scripts/smoke-packaged.mjs
 
-      - name: Install, uninstall and reinstall test (Windows)
+      # The file users actually download: unpack the release ZIP and run the same checks on it.
+      - name: Smoke test the release ZIP (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        timeout-minutes: 15
-        run: ./scripts/ci/windows-install-test.ps1 -Version (node -p "require('./package.json').version")
+        timeout-minutes: 8
+        env:
+          SIDB_SMOKE_LABEL: Windows ZIP
+        run: |
+          $ver = node -p "require('./package.json').version"
+          $dir = Join-Path $env:RUNNER_TEMP "sidb-zip"
+          Expand-Archive "out/release/SIDB-$ver-win-x64.zip" $dir -Force
+          $exe = Get-ChildItem $dir -Recurse -Filter SIDB.exe | Select-Object -First 1
+          Write-Host "testing $($exe.FullName)"
+          $env:SIDB_SMOKE_EXE = $exe.FullName
+          bash scripts/ci/run.sh "Windows ZIP smoke test" node scripts/smoke-packaged.mjs
+          exit $LASTEXITCODE
 
       - name: Install test of the .deb (Linux)
         if: runner.os == 'Linux'
@@ -135,3 +146,27 @@ jobs:
           if gh release view "$tag" >/dev/null 2>&1; then echo "::error::A release for $tag already exists; publish a new version instead"; exit 1; fi
           gh release create "$tag" dist-release/* --verify-tag --title "SIDB $ver" --notes-file "$notes" --latest
           echo "::notice title=Release::Published SIDB $ver"
+
+  # Work in progress for v0.1.1. Started by hand (Actions > Run workflow); never part of a release and never blocks one.
+  windows-installer:
+    name: Windows installer (experimental, manual)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    continue-on-error: true
+    timeout-minutes: 40
+    env:
+      SIDB_BUILD_INSTALLER: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build the installer
+        shell: bash
+        run: bash scripts/ci/run.sh "Build installer" npm run make
+      - name: Install, uninstall and reinstall test
+        shell: pwsh
+        timeout-minutes: 15
+        run: ./scripts/ci/windows-install-test.ps1 -Version (node -p "require('./package.json').version")

@@ -109,8 +109,9 @@ hardware acceleration off for the next start and says so in this panel.
 ## Updates
 
 Settings > About and updates shows your version and checks GitHub Releases for a newer one (automatically once a day,
-or "Check now"). When there is one, "Open release page" opens it in a tab. Download the installer there and run it;
-your data stays. SIDB never downloads or installs updates by itself.
+or "Check now"). When there is one, "Open release page" opens it in a tab. Download the new version there: on Windows
+unpack the ZIP into a new folder (then delete the old one), on Linux install the `.deb` or `.rpm`. Your data stays.
+SIDB never downloads or installs updates by itself.
 
 ## Keyboard shortcuts
 
@@ -140,8 +141,8 @@ Shortcuts can't be changed yet.
 - **A page looks broken:** turn Shield off for that site (shield icon > turn off for this site) and reload.
 - **Pages flicker or stay blank:** Settings > Performance > turn off hardware acceleration, then restart SIDB.
 - **"Couldn't sign you in" on Google:** see "Signing in to Google" above.
-- **Windows says "Unknown publisher":** the installer is not code-signed. Check the SHA-256 checksum from the release
-  page before running it (see the README).
+- **Windows says "Unknown publisher":** SIDB is not code-signed. Check the SHA-256 checksum from the release page
+  before running it (see the README).
 - **Start fresh without losing data:** close SIDB and rename the data folder (`%APPDATA%\SIDB` on Windows,
   `~/.config/SIDB` on Linux). Renaming it back restores everything.
 

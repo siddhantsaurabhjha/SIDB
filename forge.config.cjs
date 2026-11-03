@@ -31,7 +31,10 @@ module.exports = {
     },
   },
   makers: [
-    {
+    // The Windows installer (Squirrel) is NOT part of v0.1.0 releases: its normal, visible install did not finish on
+    // GitHub's Windows machines (see progress.md). It is only built when SIDB_BUILD_INSTALLER=1, for the manual
+    // "Windows installer (experimental)" workflow job.
+    ...(process.env.SIDB_BUILD_INSTALLER === "1" ? [{
       name: "@electron-forge/maker-squirrel",
       platforms: ["win32"],
       config: {
@@ -43,7 +46,7 @@ module.exports = {
         // Windows SmartScreen shows "Unknown publisher" on first run.
         ...(process.env.WINDOWS_CERTIFICATE_FILE ? { certificateFile: process.env.WINDOWS_CERTIFICATE_FILE, certificatePassword: process.env.WINDOWS_CERTIFICATE_PASSWORD } : {}),
       },
-    },
+    }] : []),
     { name: "@electron-forge/maker-zip", platforms: ["win32", "linux"] },
     {
       name: "@electron-forge/maker-deb",

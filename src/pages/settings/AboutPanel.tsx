@@ -51,7 +51,7 @@ export function AboutPanel() {
         <Toggle checked={s.autoCheck} label="Check for updates automatically" onChange={(v) => void api.setAutoCheck({ enabled: v })} />
       </div>
       <p className="mt-3 text-[11px] text-muted">
-        SIDB only tells you about a new version; it never downloads or installs one by itself. To update, download the installer from the release page and run it. Your profiles, bookmarks and history stay as they are.
+        SIDB only tells you about a new version; it never downloads or installs one by itself. To update, download the new version from the release page and unpack or install it. Your profiles, bookmarks and history are kept in a separate data folder and stay as they are.
       </p>
     </Panel>
   );
